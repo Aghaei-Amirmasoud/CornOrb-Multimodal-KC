@@ -15,7 +15,7 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 from torchvision import transforms
 
 from config import (
-    IMG_SIZE, IMAGE_ROOT, MAP_TYPES, FIGURES_DIR, DEVICE
+    IMG_SIZE, IMAGE_ROOT, MAP_TYPES, GRADCAM_DIR, DEVICE
 )
 
 # ── Inference transform (no augmentation) ────────────────────────────────────
@@ -143,7 +143,7 @@ def run_gradcam_analysis(model, results: dict, test_df, scaler=None,
     print(f"Generating Grad-CAM for top {n_top} false negatives ...")
     for _, row in fn_df.head(n_top).iterrows():
         save = os.path.join(
-            FIGURES_DIR,
+            GRADCAM_DIR,
             f"gradcam_error_{row['patient_code']}_{row['eye']}.png"
         )
         gradcam_for_eye(
@@ -160,7 +160,7 @@ def run_gradcam_analysis(model, results: dict, test_df, scaler=None,
     print(f"Generating Grad-CAM for top {n_top} correct KC detections ...")
     for _, row in tp_df.head(n_top).iterrows():
         save = os.path.join(
-            FIGURES_DIR,
+            GRADCAM_DIR,
             f"gradcam_correct_{row['patient_code']}_{row['eye']}.png"
         )
         gradcam_for_eye(
@@ -177,7 +177,7 @@ def run_gradcam_analysis(model, results: dict, test_df, scaler=None,
     print(f"Generating Grad-CAM for {len(fp_df)} false positive(s) ...")
     for _, row in fp_df.iterrows():
         save = os.path.join(
-            FIGURES_DIR,
+            GRADCAM_DIR,
             f"gradcam_FP_{row['patient_code']}_{row['eye']}.png"
         )
         gradcam_for_eye(
@@ -194,7 +194,7 @@ def run_gradcam_analysis(model, results: dict, test_df, scaler=None,
     print(f"Generating Grad-CAM for top {n_top} correct Normal detections ...")
     for _, row in tn_df.head(n_top).iterrows():
         save = os.path.join(
-            FIGURES_DIR,
+            GRADCAM_DIR,
             f"gradcam_correct_normal_{row['patient_code']}_{row['eye']}.png"
         )
         gradcam_for_eye(

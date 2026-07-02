@@ -8,9 +8,10 @@ CSV_PATH    = os.path.join(DATASET_DIR, "clinical_data_and_labels.csv")
 IMAGE_ROOT  = os.path.join(DATASET_DIR, "ORBSCAN_Dataset")
 OUTPUT_DIR  = os.path.join(BASE_DIR, "outputs")
 FIGURES_DIR = os.path.join(OUTPUT_DIR, "figures")
+GRADCAM_DIR = os.path.join(FIGURES_DIR, "grad-cam")
 WEIGHTS_DIR = os.path.join(OUTPUT_DIR, "weights")
 
-for d in [DATASET_DIR, OUTPUT_DIR, FIGURES_DIR, WEIGHTS_DIR]:
+for d in [DATASET_DIR, OUTPUT_DIR, FIGURES_DIR, GRADCAM_DIR, WEIGHTS_DIR]:
     os.makedirs(d, exist_ok=True)
 
 # ── Zenodo URLs ───────────────────────────────────────────────────────────────
