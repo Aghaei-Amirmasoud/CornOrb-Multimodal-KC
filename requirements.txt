@@ -1,0 +1,15 @@
+# All packages below come pre-installed on Google Colab
+# except grad-cam — installed automatically by the notebook
+torch
+torchvision
+scikit-learn
+pandas
+numpy
+matplotlib
+seaborn
+Pillow
+scipy
+statsmodels
+
+# Install manually (or via notebook cell):
+grad-cam
