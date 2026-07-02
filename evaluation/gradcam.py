@@ -48,6 +48,17 @@ def _load_map_tensor(patient_code: str, eye: str, map_type: str,
     return tensor, rgb_np
 
 
+class ImageOnlyWrapper(torch.nn.Module):
+    """Wraps MultimodalFusionNet to accept only image input for Grad-CAM."""
+    def __init__(self, model, clinical_tensor):
+        super().__init__()
+        self.model           = model
+        self.clinical_tensor = clinical_tensor  # fixed clinical input
+
+    def forward(self, images):
+        return self.model(images, self.clinical_tensor)
+
+
 def gradcam_for_eye(model, patient_code: str, eye: str,
                     label_str: str, clinical_tensor,
                     save_path: str = None) -> plt.Figure:
@@ -66,7 +77,6 @@ def gradcam_for_eye(model, patient_code: str, eye: str,
         matplotlib Figure
     """
     model.eval()
-    target_layer = model.image_branch[-2][-1].conv2   # last conv of ResNet-18
 
     map_tensors, rgb_nps = [], []
     for m in MAP_TYPES:
@@ -77,7 +87,9 @@ def gradcam_for_eye(model, patient_code: str, eye: str,
     stacked = torch.cat(map_tensors, dim=0).unsqueeze(0).to(DEVICE)  # (1,12,H,W)
     clin    = clinical_tensor.to(DEVICE)
 
-    cam = GradCAM(model=model, target_layers=[target_layer])
+    wrapped_model = ImageOnlyWrapper(model, clin)
+    target_layer = wrapped_model.model.image_branch[-2][-1].conv2
+    cam = GradCAM(model=wrapped_model, target_layers=[target_layer])
 
     fig, axes = plt.subplots(2, 4, figsize=(20, 10))
     fig.suptitle(
