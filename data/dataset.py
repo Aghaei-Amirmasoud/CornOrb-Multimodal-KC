@@ -1,9 +1,5 @@
-"""
-data/dataset.py
-CornOrbDataset class and DataLoader factory.
-"""
-
 import os
+import random
 import numpy as np
 from PIL import Image
 
@@ -11,7 +7,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from torchvision import transforms
 
-from config import IMG_SIZE, BATCH_SIZE, MAP_TYPES, IMAGE_ROOT
+from config import IMG_SIZE, BATCH_SIZE, MAP_TYPES, IMAGE_ROOT, SEED
 
 
 # ── Transforms ────────────────────────────────────────────────────────────────
@@ -32,6 +28,14 @@ val_transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225]),
 ])
+
+
+# ── Worker seeding ────────────────────────────────────────────────────────────
+
+def seed_worker(_):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
@@ -60,7 +64,8 @@ class CornOrbDataset(Dataset):
     def __len__(self):
         return len(self.df)
 
-    def _load_map(self, patient_code: str, eye: str, map_type: str) -> Image.Image:
+    def _load_map(self, patient_code: str, eye: str,
+                  map_type: str) -> Image.Image:
         path = os.path.join(
             self.image_root,
             str(patient_code),
@@ -69,16 +74,14 @@ class CornOrbDataset(Dataset):
         )
         if os.path.exists(path):
             return Image.open(path).convert("RGB")
-        # Fallback: black image if file missing
         return Image.new("RGB", (IMG_SIZE, IMG_SIZE), color=0)
 
     def __getitem__(self, idx):
         row          = self.df.iloc[idx]
         patient_code = row["patient_code"]
-        eye          = row["eye"]           # "OD" or "OS"
+        eye          = row["eye"]
         label        = int(row["label"])
 
-        # Load & transform all 4 corneal maps → concatenate to (12, H, W)
         map_tensors = []
         for m in MAP_TYPES:
             img = self._load_map(patient_code, eye, m)
@@ -87,7 +90,6 @@ class CornOrbDataset(Dataset):
             map_tensors.append(img)
         stacked = torch.cat(map_tensors, dim=0)
 
-        # Clinical features
         clinical = torch.tensor(
             row[self.clinical_cols].values.astype(np.float32)
         )
@@ -102,26 +104,38 @@ def build_dataloaders(train_df, val_df, test_df, clinical_cols,
     """
     Build train / val / test DataLoaders.
     Train loader uses WeightedRandomSampler to handle class imbalance.
-
-    Returns:
-        train_loader, val_loader, test_loader
+    Worker seeding ensures reproducibility across DataLoader workers.
     """
     train_ds = CornOrbDataset(train_df, clinical_cols, transform=train_transform)
     val_ds   = CornOrbDataset(val_df,   clinical_cols, transform=val_transform)
     test_ds  = CornOrbDataset(test_df,  clinical_cols, transform=val_transform)
 
-    # Weighted sampler — oversamples minority class during training
+    # Weighted sampler
     labels       = train_df["label"].values
     class_counts = np.bincount(labels)
     weights      = 1.0 / class_counts[labels]
-    sampler      = WeightedRandomSampler(weights, num_samples=len(weights),
-                                         replacement=True)
+    sampler      = WeightedRandomSampler(
+        weights, num_samples=len(weights), replacement=True
+    )
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, sampler=sampler,
-                              num_workers=num_workers, pin_memory=True)
-    val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False,
-                              num_workers=num_workers, pin_memory=True)
-    test_loader  = DataLoader(test_ds,  batch_size=batch_size, shuffle=False,
-                              num_workers=num_workers, pin_memory=True)
+    # Deterministic generator
+    g = torch.Generator()
+    g.manual_seed(SEED)
+
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, sampler=sampler,
+        num_workers=num_workers, pin_memory=True,
+        worker_init_fn=seed_worker, generator=g,
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=batch_size, shuffle=False,
+        num_workers=num_workers, pin_memory=True,
+        worker_init_fn=seed_worker, generator=g,
+    )
+    test_loader = DataLoader(
+        test_ds, batch_size=batch_size, shuffle=False,
+        num_workers=num_workers, pin_memory=True,
+        worker_init_fn=seed_worker, generator=g,
+    )
 
     return train_loader, val_loader, test_loader

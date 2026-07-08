@@ -1,5 +1,8 @@
 import os
 import torch
+import random
+import numpy as np
+
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
@@ -52,6 +55,16 @@ WEIGHT_DECAY = 1e-4
 VAL_SIZE     = 0.15      # fraction of train patients held out for validation
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# ── Reproducibility ────────────────────────────────────────────────────────────
+def set_seed(seed: int = SEED):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark     = False
 
 # ── Ablation modes ────────────────────────────────────────────────────────────
 MODES = ["image_only", "clinical_only", "fused"]
